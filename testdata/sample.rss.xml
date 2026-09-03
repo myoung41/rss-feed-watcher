@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Example Blog</title>
+    <link>https://example.com/</link>
+    <description>An example feed for tests.</description>
+    <item>
+      <title>First post</title>
+      <link>https://example.com/posts/first</link>
+      <guid>urn:uuid:11111111-1111-1111-1111-111111111111</guid>
+    </item>
+    <item>
+      <title>Second post</title>
+      <link>https://example.com/posts/second</link>
+      <guid isPermaLink="false">tag:example.com,2026:second</guid>
+    </item>
+    <item>
+      <title>No guid post</title>
+      <link>https://example.com/posts/no-guid</link>
+    </item>
+  </channel>
+</rss>
