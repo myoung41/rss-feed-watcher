@@ -23,6 +23,20 @@ Requires Go 1.22+ and nothing else. No third-party dependencies.
 feedwatch https://example.com/feed.xml
 ```
 
+To check several feeds in one run, put one URL per line in a file
+(blank lines and lines starting with `#` are ignored) and pass it with
+`-list`:
+
+```
+feedwatch -list feeds.txt
+```
+
+Each feed still gets its own state file, derived from its URL, so
+`-list` is just a way to loop the tool over several feeds without a
+wrapper script. `-state` can't be combined with `-list` for the same
+reason - there's nowhere to put a single shared state file for
+multiple feeds.
+
 The first time you run it against a given feed, it won't print
 anything - it records every current item as a baseline and tells you
 so on stderr. Run it again after the feed has new items and you'll see
@@ -52,7 +66,11 @@ new" notifier with no server component.
 ```
 -state string
       path to state file (default: derived from the feed URL under the
-      user config dir, e.g. ~/.config/feedwatch/<hash>.json on Linux)
+      user config dir, e.g. ~/.config/feedwatch/<hash>.json on Linux).
+      Not allowed with -list.
+-list string
+      path to a file of feed URLs, one per line, to check as a batch
+      instead of a single feed on the command line
 -timeout duration
       HTTP request timeout (default 15s)
 -first-run-show
