@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"crypto/fnv"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
@@ -13,16 +14,26 @@ import (
 	"time"
 )
 
+// newItem is the -json output shape, one line per new item.
+type newItem struct {
+	Title  string `json:"title"`
+	Link   string `json:"link"`
+	ID     string `json:"id"`
+	SeenAt int64  `json:"seen_at"`
+}
+
 func main() {
 	var stateFile string
 	var listFile string
 	var timeout time.Duration
 	var showFirst bool
+	var jsonOut bool
 
 	flag.StringVar(&stateFile, "state", "", "path to state file (default: derived from the feed URL under the user config dir). Not allowed with -list.")
 	flag.StringVar(&listFile, "list", "", "path to a file of feed URLs, one per line, to check as a batch instead of a single feed on the command line")
 	flag.DurationVar(&timeout, "timeout", 15*time.Second, "HTTP request timeout")
 	flag.BoolVar(&showFirst, "first-run-show", false, "print all items on the first run instead of just recording them as a baseline")
+	flag.BoolVar(&jsonOut, "json", false, "emit new items as JSON lines instead of title/link pairs")
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "usage: %s [flags] <feed-url>\n       %s [flags] -list <file>\n", os.Args[0], os.Args[0])
 		flag.PrintDefaults()
@@ -71,7 +82,7 @@ func main() {
 			}
 			sf = path
 		}
-		if err := checkFeed(client, feedURL, sf, showFirst); err != nil {
+		if err := checkFeed(client, feedURL, sf, showFirst, jsonOut); err != nil {
 			fmt.Fprintf(os.Stderr, "feedwatch: %s: %v\n", feedURL, err)
 			failed = true
 		}
@@ -85,7 +96,7 @@ func main() {
 // in its state file, and updates the state file. Errors are returned
 // rather than printed so a batch run (-list) can report which feed URL
 // they came from and keep going with the rest.
-func checkFeed(client *http.Client, feedURL, stateFile string, showFirst bool) error {
+func checkFeed(client *http.Client, feedURL, stateFile string, showFirst, jsonOut bool) error {
 	body, err := fetch(client, feedURL)
 	if err != nil {
 		return err
@@ -108,6 +119,7 @@ func checkFeed(client *http.Client, feedURL, stateFile string, showFirst bool) e
 	firstRun := len(state.Seen) == 0
 	now := time.Now().Unix()
 
+	enc := json.NewEncoder(os.Stdout)
 	for _, it := range items {
 		id := it.ID()
 		if _, ok := state.Seen[id]; ok {
@@ -115,6 +127,15 @@ func checkFeed(client *http.Client, feedURL, stateFile string, showFirst bool) e
 		}
 		state.Seen[id] = now
 		if firstRun && !showFirst {
+			continue
+		}
+		if jsonOut {
+			// Encode errors here mean stdout is broken (e.g. a closed
+			// pipe), which every other write below would also hit, so
+			// there's no point trying to keep going.
+			if err := enc.Encode(newItem{Title: it.Title, Link: it.Link, ID: id, SeenAt: now}); err != nil {
+				return err
+			}
 			continue
 		}
 		fmt.Printf("%s\n%s\n\n", it.Title, it.Link)

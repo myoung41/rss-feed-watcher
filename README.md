@@ -76,7 +76,24 @@ new" notifier with no server component.
 -first-run-show
       print all items on the first run instead of just recording them
       as a baseline
+-json
+      emit new items as JSON lines instead of title/link pairs
 ```
+
+### JSON output
+
+With `-json`, each new item is printed as its own JSON object on its
+own line (JSON Lines), which is easier to feed into `jq` or another
+program than the default title/link format:
+
+```
+$ feedwatch -json https://blog.example.com/rss.xml
+{"title":"New Release: v2.3.0","link":"https://blog.example.com/posts/v2.3.0","id":"https://blog.example.com/posts/v2.3.0","seen_at":1732000000}
+```
+
+`id` is whatever `feedwatch` used to dedupe the item (GUID, falling
+back to link, falling back to title), and `seen_at` is the Unix
+timestamp it was first recorded.
 
 ### State
 
