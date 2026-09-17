@@ -78,6 +78,9 @@ new" notifier with no server component.
       as a baseline
 -json
       emit new items as JSON lines instead of title/link pairs
+-prune-days int
+      remove state entries older than N days before checking (0
+      disables pruning, which is the default)
 ```
 
 ### JSON output
@@ -101,6 +104,12 @@ State is a small JSON file mapping item IDs to the Unix timestamp they
 were first seen. Delete it to reset a feed back to "never checked".
 Each feed URL gets its own state file by default, so you can watch as
 many feeds as you like without them stepping on each other.
+
+For a high-volume feed, the state file grows by one entry per item
+forever. Pass `-prune-days N` to drop entries older than N days before
+each check. If a pruned item is somehow still in the feed on a later
+run, it gets reported as new again - that's the tradeoff for not
+keeping every ID around indefinitely.
 
 ## What it doesn't do
 

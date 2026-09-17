@@ -6,10 +6,25 @@ import (
 	"path/filepath"
 )
 
-// State records which item IDs we've already reported, plus when, so a
-// stale entry could later be pruned (not implemented yet).
+// State records which item IDs we've already reported, plus when.
 type State struct {
 	Seen map[string]int64 `json:"seen"`
+}
+
+// pruneState drops entries older than maxAgeDays so a state file for a
+// long-lived, high-volume feed doesn't grow without bound. If a pruned
+// ID is still present in the feed on a later run, it gets reported as
+// new again - that's the tradeoff for not keeping every ID forever.
+func pruneState(s *State, now int64, maxAgeDays int) int {
+	cutoff := now - int64(maxAgeDays)*86400
+	pruned := 0
+	for id, seenAt := range s.Seen {
+		if seenAt < cutoff {
+			delete(s.Seen, id)
+			pruned++
+		}
+	}
+	return pruned
 }
 
 func loadState(path string) (*State, error) {

@@ -28,17 +28,24 @@ func main() {
 	var timeout time.Duration
 	var showFirst bool
 	var jsonOut bool
+	var pruneDays int
 
 	flag.StringVar(&stateFile, "state", "", "path to state file (default: derived from the feed URL under the user config dir). Not allowed with -list.")
 	flag.StringVar(&listFile, "list", "", "path to a file of feed URLs, one per line, to check as a batch instead of a single feed on the command line")
 	flag.DurationVar(&timeout, "timeout", 15*time.Second, "HTTP request timeout")
 	flag.BoolVar(&showFirst, "first-run-show", false, "print all items on the first run instead of just recording them as a baseline")
 	flag.BoolVar(&jsonOut, "json", false, "emit new items as JSON lines instead of title/link pairs")
+	flag.IntVar(&pruneDays, "prune-days", 0, "remove state entries older than N days before checking (0 disables pruning)")
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "usage: %s [flags] <feed-url>\n       %s [flags] -list <file>\n", os.Args[0], os.Args[0])
 		flag.PrintDefaults()
 	}
 	flag.Parse()
+
+	if pruneDays < 0 {
+		fmt.Fprintln(os.Stderr, "feedwatch: -prune-days can't be negative")
+		os.Exit(2)
+	}
 
 	var feedURLs []string
 	if listFile != "" {
@@ -82,7 +89,7 @@ func main() {
 			}
 			sf = path
 		}
-		if err := checkFeed(client, feedURL, sf, showFirst, jsonOut); err != nil {
+		if err := checkFeed(client, feedURL, sf, showFirst, jsonOut, pruneDays); err != nil {
 			fmt.Fprintf(os.Stderr, "feedwatch: %s: %v\n", feedURL, err)
 			failed = true
 		}
@@ -96,7 +103,7 @@ func main() {
 // in its state file, and updates the state file. Errors are returned
 // rather than printed so a batch run (-list) can report which feed URL
 // they came from and keep going with the rest.
-func checkFeed(client *http.Client, feedURL, stateFile string, showFirst, jsonOut bool) error {
+func checkFeed(client *http.Client, feedURL, stateFile string, showFirst, jsonOut bool, pruneDays int) error {
 	body, err := fetch(client, feedURL)
 	if err != nil {
 		return err
@@ -118,6 +125,10 @@ func checkFeed(client *http.Client, feedURL, stateFile string, showFirst, jsonOu
 	// instead unless the caller asks otherwise.
 	firstRun := len(state.Seen) == 0
 	now := time.Now().Unix()
+
+	if pruneDays > 0 {
+		pruneState(state, now, pruneDays)
+	}
 
 	enc := json.NewEncoder(os.Stdout)
 	for _, it := range items {
